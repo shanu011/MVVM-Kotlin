@@ -1,46 +1,65 @@
 package com.rajat.mvvmkotlin.viewmodel
 
+import android.Manifest
+import android.net.ConnectivityManager
+import androidx.annotation.RequiresPermission
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.rajat.mvvmkotlin.CheckConnectivity
 import com.rajat.mvvmkotlin.EmployeeData
 import com.rajat.mvvmkotlin.EmployeeList
 import com.rajat.mvvmkotlin.repositeries.EmployeeRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
 import okhttp3.Callback
 import retrofit2.Call
 import retrofit2.Response
+import javax.inject.Inject
 
-class EmployeeViewModel (): ViewModel(){
-    private val repo = EmployeeRepository()
-    val employeeAs: MutableLiveData<ApiStatus> = MutableLiveData<ApiStatus>(ApiStatus.NotHitOnce)
-    var employeeData = EmployeeData()
-    var employeeList = ArrayList<EmployeeList>()
+@HiltViewModel
+class EmployeeViewModel @Inject constructor(private val repo : EmployeeRepository, private val checkConnectivity: CheckConnectivity): ViewModel(){
+   // private val repo = EmployeeRepository()
+    private val joinEmployeeState : MutableLiveData<SealedClass<EmployeeData?>> = MutableLiveData<SealedClass<EmployeeData?>>(SealedClass.NoHit)
+    val employeeAs : LiveData<SealedClass<EmployeeData?>> = joinEmployeeState
+    private var callback: ConnectivityManager.NetworkCallback? = null
 
-    fun fetchEmployees() {
-        employeeAs.value = ApiStatus.IsBeingHit
-        repo.getEmployee().enqueue(object : retrofit2.Callback<EmployeeData>{
-            override fun onResponse(
-                call: Call<EmployeeData>,
-                response: Response<EmployeeData>
-            ) {
-                if (response.isSuccessful && response.body() != null) {
-                   employeeData = response.body()!!
-                    val safeList = response.body()!!.data.orEmpty().filterNotNull()
-                    val newItems = safeList.filter { newEmp ->
-                        employeeList.none { it.id == newEmp.id }
-                    }
-                    employeeList.addAll(newItems)
-                    employeeAs.value = ApiStatus.ApiHit
-                }else{
-                    employeeAs.value = ApiStatus.ApiHitWithError
-                }
+
+    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
+    fun observeConnectivity() {
+        callback = checkConnectivity.registerNetworkCallback { isConnected->
+            if(isConnected){
+                fetchEmployees()
+            }else{
+                joinEmployeeState.value = SealedClass.ErrorInternet("No Internet Connection")
             }
-
-            override fun onFailure(call: Call<EmployeeData>, t: Throwable) {
-                println("Check OnFailure of FetchEmployees: ${t.message}")
-                employeeAs.value = ApiStatus.ApiHitWithError
-
-            }
-
-        })
+        }
     }
+    fun stopObserving() {
+        callback?.let { checkConnectivity.unregisterNetworkCallback(it) }
+        callback = null
+    }
+    fun fetchEmployees() {
+        viewModelScope.launch {
+            try {
+                joinEmployeeState.value = SealedClass.Loading
+                val response = repo.getEmployee()
+                if (response.isSuccessful && response.body()?.data!=null) {
+                    joinEmployeeState.value = SealedClass.Success(response.body())
+                    // handle success
+                    println("Employee Data: ${response.body()?.data}")
+                } else {
+                    // handle error response
+                    joinEmployeeState.value = SealedClass.Error(response.message())
+                }
+            } catch (e: Exception) {
+                // handle network error
+                joinEmployeeState.value = SealedClass.Error(e.message.toString())
+            //    println("CHeck All employee Fetch Exception: ${e.message}")
+            }
+        }
+    }
+
+
 }

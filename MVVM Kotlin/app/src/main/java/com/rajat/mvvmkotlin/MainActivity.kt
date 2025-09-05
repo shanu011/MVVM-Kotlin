@@ -13,12 +13,15 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.rajat.mvvmkotlin.databinding.ActivityMainBinding
 import com.rajat.mvvmkotlin.viewmodel.ApiStatus
 import com.rajat.mvvmkotlin.viewmodel.EmployeeViewModel
+import com.rajat.mvvmkotlin.viewmodel.SealedClass
+import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.HiltAndroidApp
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
-    lateinit var binding : ActivityMainBinding
-    lateinit var  viewModel: EmployeeViewModel
+    lateinit var binding: ActivityMainBinding
+     val viewModel: EmployeeViewModel by viewModels()
     lateinit var employeeAdapter: EmployeeAdapter
-    var employeeList = ArrayList<EmployeeList>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -30,21 +33,30 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-         viewModel = ViewModelProvider(this)[EmployeeViewModel::class.java]
-        viewModel.fetchEmployees()
-        viewModel.employeeAs.observe(this) { state ->
-         if(state == ApiStatus.IsBeingHit){
 
-             Toast.makeText(this, "Loading...", Toast.LENGTH_SHORT).show()
-         }else if(state == ApiStatus.ApiHit){
-             employeeAdapter = EmployeeAdapter(this,viewModel.employeeList)
-             binding.rvList.layoutManager = LinearLayoutManager(this)
-             binding.rvList.adapter = employeeAdapter
-           var data =   viewModel.employeeData.data?.size
-             Toast.makeText(this, "${data}", Toast.LENGTH_SHORT).show()
-         }else {
-             println("SHow Error: ${viewModel.employeeData.message}")
-         }
+        viewModel.observeConnectivity()
+        viewModel.employeeAs.observe(this) { state ->
+            when (state) {
+                is SealedClass.Loading -> {
+                    Toast.makeText(this, "Loading...", Toast.LENGTH_SHORT).show()
+                }
+                is SealedClass.Success -> {
+                    var response = state.data
+                    employeeAdapter = EmployeeAdapter(this, response?.data as ArrayList)
+                    binding.rvList.layoutManager = LinearLayoutManager(this)
+                    binding.rvList.adapter = employeeAdapter
+                }
+                is SealedClass.Error -> {
+                    var error = state.toString()
+                    println("SHow Error: ${error}")
+                }
+                else -> {}
+            }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        viewModel.stopObserving()
     }
 }

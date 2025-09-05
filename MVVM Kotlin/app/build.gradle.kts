@@ -60,13 +60,20 @@ dependencies {
     implementation ("com.squareup.moshi:moshi:1.13.0") // or the latest version
     implementation ("com.squareup.moshi:moshi-kotlin:1.13.0")
     val lifecycleVersion = "2.4.1"
-    implementation ("androidx.lifecycle:lifecycle-livedata-ktx:$lifecycleVersion")
+    //implementation ("androidx.lifecycle:lifecycle-livedata-ktx:$lifecycleVersion")
     implementation ("androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycleVersion")
     kapt("androidx.lifecycle:lifecycle-compiler:$lifecycleVersion")
     implementation ("androidx.lifecycle:lifecycle-runtime-ktx:$lifecycleVersion")
-    implementation ("androidx.lifecycle:lifecycle-extensions:2.2.0")
-    implementation ("io.reactivex.rxjava2:rxjava:2.1.1")
-    implementation ("androidx.lifecycle:lifecycle-reactivestreams-ktx:$lifecycleVersion")
+//    implementation ("androidx.lifecycle:lifecycle-extensions:2.2.0")
+//    implementation ("io.reactivex.rxjava2:rxjava:2.1.1")
+//    implementation ("androidx.lifecycle:lifecycle-reactivestreams-ktx:$lifecycleVersion")
 
     implementation("com.github.bumptech.glide:glide:4.16.0")
+    //Hilt
+    implementation ("com.google.dagger:hilt-android:2.51.1")
+    kapt ("com.google.dagger:hilt-compiler:2.51.1")
+
+    // Hilt + ViewModel
+    implementation ("androidx.hilt:hilt-lifecycle-viewmodel:1.0.0-alpha03")
+    kapt ("androidx.hilt:hilt-compiler:1.0.0")
 }
